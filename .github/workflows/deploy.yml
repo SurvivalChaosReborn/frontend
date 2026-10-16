@@ -2,7 +2,7 @@
 #
 # To get started with Nuxt see: https://nuxtjs.org/docs/get-started/installation
 #
-name: Deploy Nuxt site to Pages
+name: Build and deploy static
 
 on:
   # Runs on pushes targeting the default branch
@@ -61,11 +61,13 @@ jobs:
         env:
           NODE_ENV: production
           NUXT_PUBLIC_BACKEND_URL: ${{ vars.NUXT_PUBLIC_BACKEND_URL }}
-      - name: Copy folder content recursively to remote
-        uses: garygrossgarten/github-action-scp@release
+      - name: RSync deployments
+        uses: burnett01/rsync-deployments@v9
         with:
-          local: ./.output/public/ # Folder inside the runner
-          remote: /var/www/surv # Target path on your server
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
+          switches: -avzr --delete
+          path: ./.output/public/
+          remote_path: /var/www/surv
+          remote_host: ${{ secrets.SSH_HOST }} # ex: example.com
+          remote_port: 22
+          remote_user: ${{ secrets.SSH_USER }} # ex: ubuntu
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
