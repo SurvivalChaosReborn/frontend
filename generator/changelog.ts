@@ -42,6 +42,10 @@ import pixelmatch from 'pixelmatch';
 
 const nanoid = customAlphabet(alphanumeric, 6);
 
+const renames: Record<string, string> = {
+  blood_elf: 'blood',
+};
+
 const getPath = (...args: [] | [string] | [string, string]) =>
   resolve(process.cwd(), 'data', globalThis.mapVersion, ...args);
 
@@ -52,7 +56,7 @@ const outputDir = resolve(
   process.cwd(),
   'data',
   'changelogs',
-  globalThis.mapVersion
+  globalThis.mapVersion,
 );
 
 await mkdir(outputDir, { recursive: true });
@@ -62,7 +66,7 @@ const existsLogs = await readdir(outputDir);
 const versions = sortVersion(
   dirDirents
     .filter((dirent) => dirent.isDirectory())
-    .map((dirent) => dirent.name)
+    .map((dirent) => dirent.name),
 );
 
 type CompareObjects = IBaseObject &
@@ -102,7 +106,10 @@ class ChangelogGenerator {
 
   private imageBuffers: Record<string, Buffer> = {};
 
-  constructor(public newVersion: string, public oldVersion: string) {
+  constructor(
+    public newVersion: string,
+    public oldVersion: string,
+  ) {
     this.changelog = {
       from: this.oldVersion,
       to: this.newVersion,
@@ -132,7 +139,7 @@ class ChangelogGenerator {
         await acc;
         const raceContent = await readFile(
           getPath(this.newVersion, `${raceKey}.json`),
-          'utf8'
+          'utf8',
         );
         const raceData: IRaceData = JSON.parse(raceContent).data;
         if (!this.changelog.newRaces) this.changelog.newRaces = [];
@@ -151,10 +158,10 @@ class ChangelogGenerator {
 
   private async processUltimates() {
     const oldUltimatesFile = JSON.parse(
-      await readFile(getPath(this.oldVersion, `ultimates.json`), 'utf8')
+      await readFile(getPath(this.oldVersion, `ultimates.json`), 'utf8'),
     );
     const newUltimatesFile = JSON.parse(
-      await readFile(getPath(this.newVersion, `ultimates.json`), 'utf8')
+      await readFile(getPath(this.newVersion, `ultimates.json`), 'utf8'),
     );
 
     const oldRaceContent: IUltimatesData = oldUltimatesFile.data;
@@ -170,7 +177,7 @@ class ChangelogGenerator {
 
     const pickers = this.handleArrayByHotkey(
       oldRaceContent.pickers,
-      newRaceContent.pickers
+      newRaceContent.pickers,
     );
     if (!pickers.length) return;
 
@@ -202,7 +209,7 @@ class ChangelogGenerator {
       JSON.stringify({
         data: this.changelog,
         icons,
-      })
+      }),
     );
   }
 
@@ -224,7 +231,7 @@ class ChangelogGenerator {
               null,
               width,
               height,
-              { threshold: 0.3 }
+              { threshold: 0.3 },
             );
             return i < idx && diffRaw / (width * height) < 0.05;
           }) ?? [];
@@ -237,7 +244,7 @@ class ChangelogGenerator {
         acc[id] = buffer;
         return acc;
       },
-      {} as Record<string, Buffer>
+      {} as Record<string, Buffer>,
     );
 
     const sprite = await new Promise<SpritesmithResult<Buffer>>((res, rej) => {
@@ -249,10 +256,10 @@ class ChangelogGenerator {
               new Vinyl({
                 path: `${name}.png`,
                 contents: buffer,
-              })
+              }),
           ),
         },
-        (err, data) => (err ? rej(err) : res(data))
+        (err, data) => (err ? rej(err) : res(data)),
       );
     });
 
@@ -270,14 +277,14 @@ class ChangelogGenerator {
       {} as Record<
         string,
         [x: number, y: number, width: number, height: number]
-      >
+      >,
     );
     return shortenCoordinates;
   }
 
   private compareDescription<T extends { description?: string }>(
     oldObj: T,
-    newObj: T
+    newObj: T,
   ) {
     if (
       !oldObj.description ||
@@ -295,7 +302,7 @@ class ChangelogGenerator {
         (...args) => {
           const { open = '', content = '', close = '' } = args.pop() ?? {};
           return `${open}<span class="diff ${className}">${content}</span>${close}`;
-        }
+        },
       );
     const wrapAdded = (text: string) => replaceTags(text, 'added');
     const wrapRemoved = (text: string) => replaceTags(text, 'removed');
@@ -323,7 +330,7 @@ class ChangelogGenerator {
 
   private compare<T extends IBaseObject>(
     oldObj: T,
-    newObj: T
+    newObj: T,
   ): ChangeTuple<WithIconId<T>> | null {
     if (!oldObj || !newObj) return null;
     const type = oldObj.id === newObj.id ? 'change' : ('replace' as const);
@@ -432,10 +439,13 @@ class ChangelogGenerator {
 
   private async processRace(raceId: string) {
     const oldRaceFile = JSON.parse(
-      await readFile(getPath(this.oldVersion, `${raceId}.json`), 'utf8')
+      await readFile(getPath(this.oldVersion, `${raceId}.json`), 'utf8').catch(
+        () =>
+          readFile(getPath(this.oldVersion, `${renames[raceId]}.json`), 'utf8'),
+      ),
     );
     const newRaceFile = JSON.parse(
-      await readFile(getPath(this.newVersion, `${raceId}.json`), 'utf8')
+      await readFile(getPath(this.newVersion, `${raceId}.json`), 'utf8'),
     );
 
     const oldRaceContent: IRaceData = oldRaceFile.data;
@@ -455,34 +465,34 @@ class ChangelogGenerator {
         description: (() => {
           const [, oldText, newText] = this.compareDescription(
             oldRaceContent,
-            newRaceContent
+            newRaceContent,
           );
           if (oldText && newText) return ['change', oldText, newText] as const;
         })(),
         upgrades: this.handleArrayByHotkey(
           values(oldRaceContent.baseUpgrades),
-          values(newRaceContent.baseUpgrades)
+          values(newRaceContent.baseUpgrades),
         ),
         auras: this.handleArrayByIdx(
           oldRaceContent.auras,
-          newRaceContent.auras
+          newRaceContent.auras,
         ),
         bonuses: this.handleArrayByHotkey(
           oldRaceContent.bonuses,
-          newRaceContent.bonuses
+          newRaceContent.bonuses,
         ),
         heroes: this.handleArrayByIdx(
           oldRaceContent.heroes,
-          newRaceContent.heroes
+          newRaceContent.heroes,
         ),
         units: pickBy(
           mapValues(oldRaceContent.units, (oldUnit, type) => {
             return this.compare(
               oldUnit,
-              newRaceContent.units[type as keyof IRaceData['units']]
+              newRaceContent.units[type as keyof IRaceData['units']],
             );
           }),
-          Boolean
+          Boolean,
         ),
         magic: this.handleArrayByIdx(
           oldRaceContent.magic.map((magic, idx) => ({
@@ -492,25 +502,25 @@ class ChangelogGenerator {
           newRaceContent.magic.map((magic, idx) => ({
             ...magic,
             hotkey: hotkeys[idx],
-          }))
+          })),
         ),
         towerUpgrades: this.handleArrayByHotkey(
           oldRaceContent.towerUpgrades,
-          newRaceContent.towerUpgrades
+          newRaceContent.towerUpgrades,
         ),
         buildings: pickBy(
           mapValues(oldRaceContent.buildings, (oldUnit, type) => {
             return this.compare(
               oldUnit,
-              newRaceContent.buildings[type as keyof IRaceData['buildings']]
+              newRaceContent.buildings[type as keyof IRaceData['buildings']],
             );
           }),
-          Boolean
+          Boolean,
         ),
         t1spell: this.compare(oldRaceContent.t1spell, newRaceContent.t1spell),
         t2spell: this.compare(oldRaceContent.t2spell, newRaceContent.t2spell),
       } satisfies IChangelogRace,
-      isEmpty
+      isEmpty,
     ) as unknown as IChangelogRace;
 
     if (Object.keys(raceChangelog).length <= 1) return;
@@ -522,7 +532,7 @@ class ChangelogGenerator {
 
   private getIconId(
     obj: IBaseObject | IUpgradeObject,
-    icons: Record<string, unknown>
+    icons: Record<string, unknown>,
   ) {
     if (isUpgradeObject(obj)) {
       const maybeId = `${obj.id}-${obj.level}`;
@@ -531,14 +541,14 @@ class ChangelogGenerator {
     if (obj.id in icons) return obj.id;
     return Array.from(
       { length: obj.iconsCount ?? 1 },
-      (_, idx) => `${obj.id}-${idx + 1}`
+      (_, idx) => `${obj.id}-${idx + 1}`,
     ).find((key) => key in icons);
   }
 
   private async processImages(
     raceId: string,
     oldMap: IRaceIcons,
-    newMap: IRaceIcons
+    newMap: IRaceIcons,
   ) {
     const outputPath = resolve(process.cwd(), 'temp');
     await mkdir(outputPath, { recursive: true });
@@ -553,10 +563,17 @@ class ChangelogGenerator {
 
         const imagePath = getPath(
           type === 'new' ? this.newVersion : this.oldVersion,
-          `${raceId}.webp`
+          `${raceId}.webp`,
         );
 
-        const raceImageBuffer = await readFile(imagePath);
+        const raceImageBuffer = await readFile(imagePath).catch(() =>
+          readFile(
+            getPath(
+              type === 'new' ? this.newVersion : this.oldVersion,
+              `${renames[raceId]}.webp`,
+            ),
+          ),
+        );
 
         await reduce(
           imageIdMap,
@@ -574,10 +591,10 @@ class ChangelogGenerator {
 
             this.imageBuffers[customId] = buffer;
           },
-          Promise.resolve()
+          Promise.resolve(),
         );
       },
-      Promise.resolve()
+      Promise.resolve(),
     );
   }
 }
@@ -593,7 +610,7 @@ await versions.reduce(async (acc, version, idx, arr) => {
   } catch (e) {
     console.error(
       `Error while generating changelog from ${version} to ${newVersion}`,
-      e
+      e,
     );
   }
 }, Promise.resolve());

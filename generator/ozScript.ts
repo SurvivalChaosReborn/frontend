@@ -19,29 +19,29 @@ export class OZScriptParser extends BaseScriptParser {
     1346978609, 1346978610, 1346978611, 1346978612, 1346978613,
   ];
   private scriptVariables = {
-    aura: 'o',
-    heroes: ['l', 'b', 'y', 'p'],
-    bonusPicker: 'X',
-    description: 'E',
-    magic: 'Sw',
+    aura: 'OFw',
+    heroes: ['fFw', 'RFw', 'TFw', 'YFw'],
+    bonusPicker: 'eFw',
+    description: 'hFw',
+    magic: 'GFw',
     buildings: {
-      fort: 'I',
-      barrack: 'D',
-      tower: 'L',
+      fort: 'qFw',
+      barrack: 'lFw',
+      tower: 'IFw',
     },
     baseUpgrades: {
-      melee: 'tw',
-      armor: 'cw',
-      range: 'iW',
-      wall: 'ow',
+      melee: 'gFw',
+      armor: 'oFw',
+      range: 'jFw',
+      wall: 'vFw',
     },
     units: {
-      melee: 'C',
-      range: 'V',
-      mage: 'B',
-      siege: 'N',
-      air: 'M',
-      catapult: 'ww',
+      melee: 'QFw',
+      range: 'WFw',
+      mage: 'mFw',
+      siege: 'EFw',
+      air: 'ZFw',
+      catapult: 'UFw',
     },
   };
 
@@ -74,7 +74,7 @@ export class OZScriptParser extends BaseScriptParser {
     const [raceInitBlock] =
       this.script.match(
         new RegExp(
-          String.raw`(?:else)?if .{1,6}\==${numId}.+\ncall .{1,6}\(${numId}.+\n(^.+$\n)*?call SetPlayerTechMaxAllowed`,
+          String.raw`endif\n(?:(?:call|set).+\n)*^call .{1,6}\(.+${numId}`,
           'm',
         ),
       ) ?? [];
@@ -89,7 +89,7 @@ export class OZScriptParser extends BaseScriptParser {
       (acc, { groups }) => {
         if (!groups) return acc;
         const { varName, varValue } = groups;
-        if (/\d+/.test(varValue)) {
+        if (/^\d+$/.test(varValue)) {
           acc[varName] = this.intToStr(varValue);
         } else {
           acc[varName] = this.intToStr(this.getVarValue(varValue) ?? '');
@@ -100,9 +100,8 @@ export class OZScriptParser extends BaseScriptParser {
     );
 
     const key = String(
-      raceInitBlock.match(
-        /(?:(?<=set (?<var>.{2,6})\s?=\s?['"]).+(?=['"]$\ncall SetPlayerName\(.{2,6},\k<var>\)))|(?:(?<=call SetPlayerName\(.+?,\s?['"])\w+)/im,
-      )?.[0] || getError(`race ${id} key`),
+      raceInitBlock.match(/(?<=set.+=")[^|\n]+(?=")/im)?.[0] ||
+        getError(`race ${id} key`),
     )
       .toLocaleLowerCase()
       .replace(/[^\w\-]/g, '_');
@@ -289,16 +288,23 @@ export class OZScriptParser extends BaseScriptParser {
 
   private getUltimates(): IRawUltimates {
     const codeBlock = this.script.match(
-      /(?:(?:call .{3,6}\(.{2,6},\d+,\d+,.+Ulti.+\n(?:set.+\n)?)+)|(?:(?:call .{3,6}\(.{3,6},\d+,\d+\)\n){10,11})/im,
+      /function.+\n.+\nlocal playerunitevent.+\nlocal code.+\n(call .+\n)+/im,
     )?.[0];
     if (!codeBlock) getError('getting ulti codeblock');
 
     const spells = Array.from(
-      codeBlock.matchAll(/call .*?(?<picker>\d{5,}),\s?(?<spell>\d{5,})/gim),
+      codeBlock.matchAll(/call .{1,6}\(.+,(?<picker>.+),\s?(?<spell>.+)\)/gim),
     ).reduce(
       (acc, { groups }) => {
         if (!groups) return acc;
-        const { picker, spell } = groups;
+        let { picker, spell } = groups;
+
+        if (!/^\d+$/.test(picker)) {
+          picker = this.getVarValue(picker) ?? '';
+        }
+        if (!/^\d+$/.test(spell)) {
+          spell = this.getVarValue(spell) ?? '';
+        }
 
         try {
           const ultimateCodeBlock = this.getIfBlockByIndex(
@@ -335,10 +341,11 @@ export class OZScriptParser extends BaseScriptParser {
   }
 
   private getShrines() {
+    const [block] =
+      this.script.match(/(?:call .{1,5}\(.+,\d{5,},\d{5,}\)\n){20,60}/gm) ?? [];
+    if (!block) getError('while geting shrine block');
     const matches =
-      this.script.match(
-        /(?<=if GetUnitAbilityLevel\(.{1,5},)(?<id>\d{7,})(?=.+\nset .{1,5}=\k<id>)/gm,
-      ) ?? [];
+      block.match(/(?<=call .{1,5}\(.+,)\d{5,}(?=,\d{5,}\)\n)/gm) ?? [];
     const shrineAbilities = matches.map(this.intToStr).filter(uniq);
     if (!shrineAbilities.length) {
       return getError('getting shrine block');
