@@ -61,10 +61,11 @@ jobs:
         env:
           NODE_ENV: production
           NUXT_PUBLIC_BACKEND_URL: ${{ vars.NUXT_PUBLIC_BACKEND_URL }}
-      - name: Deploy
-        uses: oprypin/push-to-gh-pages@v3
+      - name: Copy folder content recursively to remote
+        uses: garygrossgarten/github-action-scp@release
         with:
-          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
-          external_repository: sc-helper/sc-helper.github.io
-          publish_branch: main # default: gh-pages
-          publish_dir: ./.output/public
+          local: ./.output/public/ # Folder inside the runner
+          remote: /var/www/surv # Target path on your server
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          privateKey: ${{ secrets.SSH_PRIVATE_KEY }}
