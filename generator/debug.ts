@@ -5,8 +5,8 @@ import { select } from '@inquirer/prompts';
 const type = await select({
   message: 'Select version to parse',
   choices: [
-    { value: 'og', name: 'Official Sur5al/W3C' },
     { value: 'oz', name: 'OZGame Edition' },
+    { value: 'og', name: 'Official Sur5al/W3C' },
   ],
 });
 
@@ -26,17 +26,17 @@ files.forEach(async ([newFileName, parser]) => {
   await writeFile(
     resolve(process.cwd(), 'generator', 'debug', `${newFileName}.json`),
     JSON.stringify(parser.data, null, 4),
-    { encoding: 'utf8' }
+    { encoding: 'utf8' },
   );
   await writeFile(
     resolve(
       process.cwd(),
       'generator',
       'debug',
-      `${newFileName}.formatted.json`
+      `${newFileName}.formatted.json`,
     ),
     JSON.stringify(restore(parser.data), null, 4),
-    { encoding: 'utf8' }
+    { encoding: 'utf8' },
   );
 });
 

@@ -20,8 +20,8 @@ const type =
   (await select({
     message: 'Select version to parse',
     choices: [
-      { value: 'og', name: 'Official Sur5al/W3C' },
       { value: 'oz', name: 'OZGame Edition' },
+      { value: 'og', name: 'Official Sur5al/W3C' },
     ],
   }));
 

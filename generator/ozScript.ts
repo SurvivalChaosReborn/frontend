@@ -19,31 +19,30 @@ export class OZScriptParser extends BaseScriptParser {
     1346978609, 1346978610, 1346978611, 1346978612, 1346978613,
   ];
   private scriptVariables = {
-    aura: 'r',
-    heroes: ['t', 'i', 'S', 'c'],
-    bonusPicker: 'I',
-    description: 'k',
-    magic: 'N',
+    aura: 'o',
+    heroes: ['l', 'b', 'y', 'p'],
+    bonusPicker: 'X',
+    description: 'E',
+    magic: 'Sw',
     buildings: {
-      fort: 'm',
-      barrack: 'Q',
-      tower: 'U',
+      fort: 'I',
+      barrack: 'D',
+      tower: 'L',
     },
     baseUpgrades: {
-      melee: 'V',
-      armor: 'M',
-      range: 'B',
-      wall: 'ww',
+      melee: 'tw',
+      armor: 'cw',
+      range: 'iW',
+      wall: 'ow',
     },
     units: {
-      melee: 'P',
-      range: 'A',
-      mage: 'D',
-      siege: 'H',
-      air: 'J',
-      catapult: 'K',
+      melee: 'C',
+      range: 'V',
+      mage: 'B',
+      siege: 'N',
+      air: 'M',
+      catapult: 'ww',
     },
-    towerUpgrades: ['uw', 'rw', 'sw', 'tw', 'iw', 'Sw', 'cw', 'ow', 'Ow'],
   };
 
   public getPatchData(): IRawPatchData {
@@ -62,39 +61,48 @@ export class OZScriptParser extends BaseScriptParser {
     };
   }
 
+  private getVarValue(varName: string) {
+    const findStr = `set ${varName}=`;
+    const strIdx = this.script.indexOf(findStr);
+    if (strIdx <= 0) return null;
+    const endStringIdx = this.script.indexOf('\n', strIdx + findStr.length);
+    return this.script.slice(strIdx + findStr.length, endStringIdx);
+  }
+
   private getRace(id: string): IRawRace {
     const numId = this.strToInt(id);
-    const findRaceInitBlock = this.script.match(
-      new RegExp(
-        String.raw`(?:else)?if .{1,6}\[.{1,6}\]==.{1,3}.+\n(^.+$\n){0,6}(^.+$\n){1,20}call.+UnitRemoveAbility.+${numId}`,
-        'm'
-      )
-    );
-    if (!findRaceInitBlock?.index) getError(`get race block ${id}`);
-
-    const raceInitBlock = this.getIfBlockByIndex(
-      findRaceInitBlock.index,
-      this.script,
-      1
-    );
+    const [raceInitBlock] =
+      this.script.match(
+        new RegExp(
+          String.raw`(?:else)?if .{1,6}\==${numId}.+\ncall .{1,6}\(${numId}.+\n(^.+$\n)*?call SetPlayerTechMaxAllowed`,
+          'm',
+        ),
+      ) ?? [];
 
     if (!raceInitBlock) getError(`get race block ${id}`);
 
     const raceVariables = Array.from(
       raceInitBlock.matchAll(
-        /set (?<varName>\w+)(?:\[.+\])?\s?=\s?(?<varValue>.*)$/gim
-      )
-    ).reduce((acc, { groups }) => {
-      if (!groups) return acc;
-      const { varName, varValue } = groups;
-      acc[varName] = this.intToStr(varValue);
-      return acc;
-    }, {} as Record<string, string>);
+        /set (?<varName>\w+)(?:\[.+\])?\s?=\s?(?<varValue>.*)$/gim,
+      ),
+    ).reduce(
+      (acc, { groups }) => {
+        if (!groups) return acc;
+        const { varName, varValue } = groups;
+        if (/\d+/.test(varValue)) {
+          acc[varName] = this.intToStr(varValue);
+        } else {
+          acc[varName] = this.intToStr(this.getVarValue(varValue) ?? '');
+        }
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
 
     const key = String(
       raceInitBlock.match(
-        /(?:(?<=set (?<var>.{2,6})\s?=\s?['"]).+(?=['"]$\ncall SetPlayerName\(.{2,6},\k<var>\)))|(?:(?<=call SetPlayerName\(.+?,\s?['"])\w+)/im
-      )?.[0] || getError(`race ${id} key`)
+        /(?:(?<=set (?<var>.{2,6})\s?=\s?['"]).+(?=['"]$\ncall SetPlayerName\(.{2,6},\k<var>\)))|(?:(?<=call SetPlayerName\(.+?,\s?['"])\w+)/im,
+      )?.[0] || getError(`race ${id} key`),
     )
       .toLocaleLowerCase()
       .replace(/[^\w\-]/g, '_');
@@ -110,7 +118,7 @@ export class OZScriptParser extends BaseScriptParser {
                 ![
                   raceVariables[this.scriptVariables.aura],
                   raceVariables[this.scriptVariables.description],
-                ].includes(id)
+                ].includes(id),
             )
             .filter((id) => Boolean(abilitiesParser.getById(id)));
         }) ?? [];
@@ -130,10 +138,10 @@ export class OZScriptParser extends BaseScriptParser {
       magic: raceVariables[this.scriptVariables.magic],
       buildings: {
         fort: this.getBuildAllLevels(
-          raceVariables[this.scriptVariables.buildings.fort]
+          raceVariables[this.scriptVariables.buildings.fort],
         ),
         barrack: this.getBuildAllLevels(
-          raceVariables[this.scriptVariables.buildings.barrack]
+          raceVariables[this.scriptVariables.buildings.barrack],
         ),
         tower: raceVariables[this.scriptVariables.buildings.tower],
       },
@@ -142,7 +150,7 @@ export class OZScriptParser extends BaseScriptParser {
         ?.withInstance((instance) => {
           const botObjectUpgrades = mapObject(
             this.scriptVariables.baseUpgrades,
-            (key) => raceVariables[key]
+            (key) => raceVariables[key],
           );
           const upgradesInstances =
             instance
@@ -160,7 +168,7 @@ export class OZScriptParser extends BaseScriptParser {
             (hotKey) =>
               upgradesInstances.find((i) => i.getValueByKey('hk1') === hotKey)
                 ?.id,
-            true
+            true,
           );
 
           return {
@@ -190,8 +198,8 @@ export class OZScriptParser extends BaseScriptParser {
                   !!abiInstance.getValueByKey('art') &&
                   abiInstance.getValueByKey('ub1') !== 'Fuck You'
                 );
-              })
-            )
+              }),
+            ),
           ) ?? [],
       bonusHeroes: [],
       bonusPickerId: raceVariables[this.scriptVariables.bonusPicker],
@@ -206,7 +214,7 @@ export class OZScriptParser extends BaseScriptParser {
       .join('|');
     const setHeroRegex = new RegExp(
       String.raw`set (?<heroVar>${heroesPrepares})\[.{2,5}\]\s?=\s?(?<replaceHero>\d{5,})`,
-      'g'
+      'g',
     );
 
     data.bonuses.forEach((bonusID) => {
@@ -215,8 +223,8 @@ export class OZScriptParser extends BaseScriptParser {
       const findSetBonusBlock = this.script.match(
         new RegExp(
           String.raw`(?:else)?if .{3,6}\s?==${intBonusId}(?!.*$\n^.+$\nendif)`,
-          'mi'
-        )
+          'mi',
+        ),
       );
       if (!findSetBonusBlock?.index) {
         // getError(`no bonus block found for ${bonusID}`);
@@ -244,8 +252,8 @@ export class OZScriptParser extends BaseScriptParser {
 
       const setUpgrades = Array.from(
         codeBlock.matchAll(
-          /call SetPlayerTechResearched\(.{3,6},(?<research>\d+)(?:,(?<level>\d+))/gim
-        )
+          /call SetPlayerTechResearched\(.{3,6},(?<research>\d+)(?:,(?<level>\d+))/gim,
+        ),
       );
 
       const researches = (
@@ -254,7 +262,7 @@ export class OZScriptParser extends BaseScriptParser {
         .filter(isNotNil)
         .map((id) => {
           const setUpgradeLevel = setUpgrades.find(
-            ({ groups }) => groups?.research === String(this.strToInt(id))
+            ({ groups }) => groups?.research === String(this.strToInt(id)),
           )?.groups?.level;
           return [id, Number(setUpgradeLevel ?? 0)] as [string, number];
         });
@@ -268,49 +276,57 @@ export class OZScriptParser extends BaseScriptParser {
   }
 
   private getPickers() {
-    return this.pickers.map(this.intToStr).reduce((acc, pickerId) => {
-      acc[pickerId] =
-        abilitiesParser.getById(pickerId)?.getArrayValue('pb1') ??
-        getError('process pickers');
-      return acc;
-    }, {} as Record<string, string[]>);
+    return this.pickers.map(this.intToStr).reduce(
+      (acc, pickerId) => {
+        acc[pickerId] =
+          abilitiesParser.getById(pickerId)?.getArrayValue('pb1') ??
+          getError('process pickers');
+        return acc;
+      },
+      {} as Record<string, string[]>,
+    );
   }
 
   private getUltimates(): IRawUltimates {
     const codeBlock = this.script.match(
-      /(?:(?:call .{3,6}\(.{2,6},\d+,\d+,.+Ulti.+\n(?:set.+\n)?)+)|(?:(?:call .{3,6}\(.{3,6},\d+,\d+\)\n){10,11})/im
+      /(?:(?:call .{3,6}\(.{2,6},\d+,\d+,.+Ulti.+\n(?:set.+\n)?)+)|(?:(?:call .{3,6}\(.{3,6},\d+,\d+\)\n){10,11})/im,
     )?.[0];
     if (!codeBlock) getError('getting ulti codeblock');
 
     const spells = Array.from(
-      codeBlock.matchAll(/call .*?(?<picker>\d{5,}),\s?(?<spell>\d{5,})/gim)
-    ).reduce((acc, { groups }) => {
-      if (!groups) return acc;
-      const { picker, spell } = groups;
+      codeBlock.matchAll(/call .*?(?<picker>\d{5,}),\s?(?<spell>\d{5,})/gim),
+    ).reduce(
+      (acc, { groups }) => {
+        if (!groups) return acc;
+        const { picker, spell } = groups;
 
-      try {
-        const ultimateCodeBlock = this.getIfBlockByIndex(
-          this.script.search(new RegExp(String.raw`if .{3,7}\s?=\s?${picker}`))
-        );
+        try {
+          const ultimateCodeBlock = this.getIfBlockByIndex(
+            this.script.search(
+              new RegExp(String.raw`if .{3,7}\s?=\s?${picker}`),
+            ),
+          );
 
-        const spells = Array.from(
-          ultimateCodeBlock?.match(
-            /(?<=^set .{3,7}=)\d+|(?<=UnitAddAbility\(.{2,6},\s?)\d+/gm
-          ) ?? []
-        ).filter(uniq);
+          const spells = Array.from(
+            ultimateCodeBlock?.match(
+              /(?<=^set .{3,7}=)\d+|(?<=UnitAddAbility\(.{2,6},\s?)\d+/gm,
+            ) ?? [],
+          ).filter(uniq);
 
-        acc[this.intToStr(picker)] = spells
-          .concat(spell)
-          .filter(isNotNil)
-          .filter(uniq)
-          .map((val) => this.intToStr(val));
+          acc[this.intToStr(picker)] = spells
+            .concat(spell)
+            .filter(isNotNil)
+            .filter(uniq)
+            .map((val) => this.intToStr(val));
 
-        return acc;
-      } catch (e) {
-        acc[this.intToStr(picker)] = [this.intToStr(spell)];
-        return acc;
-      }
-    }, {} as Record<string, string[]>);
+          return acc;
+        } catch (e) {
+          acc[this.intToStr(picker)] = [this.intToStr(spell)];
+          return acc;
+        }
+      },
+      {} as Record<string, string[]>,
+    );
 
     return {
       spells,
@@ -319,15 +335,15 @@ export class OZScriptParser extends BaseScriptParser {
   }
 
   private getShrines() {
-    const codeBlock = this.script.match(
-      /(?:(?:call .{2,6}\(.+?,(?:\d{6,},)+.*Shrine.*\)$\n){3,})|(?:(?:call .{2,6}\(.{2,6}(?:,\d{9,11}){4,}\)\n){4,})/im
-    )?.[0];
-    if (!codeBlock) return getError('getting shrine block');
-    return Array.from(
-      codeBlock.match(/\d{6,}/gm) ?? getError('getting shrine IDs')
-    )
-      .map(this.intToStr)
-      .filter((item, idx, arr) => arr.indexOf(item) === idx);
+    const matches =
+      this.script.match(
+        /(?<=if GetUnitAbilityLevel\(.{1,5},)(?<id>\d{7,})(?=.+\nset .{1,5}=\k<id>)/gm,
+      ) ?? [];
+    const shrineAbilities = matches.map(this.intToStr).filter(uniq);
+    if (!shrineAbilities.length) {
+      return getError('getting shrine block');
+    }
+    return shrineAbilities;
   }
 
   private getArtifacts(): IRawArtifacts {
@@ -374,7 +390,7 @@ export class OZScriptParser extends BaseScriptParser {
   private getNeutrals() {
     const codeBlock =
       this.script.match(
-        /(?<=local integer array (?<varName>.+)\n)(?:^.+$\n){0,6}(?:set \k<varName>.+\n){9,}/gm
+        /(?<=local integer array (?<varName>.+)\n)(?:^.+$\n){0,6}(?:set \k<varName>.+\n){9,}/gm,
       )?.[0] || getError('no neutral blocks found');
 
     return Array.from(codeBlock.match(/\d{4,}/gm) ?? []).map(this.intToStr);
@@ -396,7 +412,7 @@ export class OZScriptParser extends BaseScriptParser {
       BigInt(string.charCodeAt(3)) |
         (BigInt(string.charCodeAt(2)) << 8n) |
         (BigInt(string.charCodeAt(1)) << 16n) |
-        (BigInt(string.charCodeAt(0)) << 24n)
+        (BigInt(string.charCodeAt(0)) << 24n),
     );
   }
 
@@ -404,10 +420,10 @@ export class OZScriptParser extends BaseScriptParser {
     const replaceMatch = this.script.match(
       new RegExp(
         String.raw`(?:else)?if .*?.{2,6}==${this.strToInt(
-          heroID
+          heroID,
         )} (?:or .{2,6}==\d+ )*then(?=\n(?:^.+$\n){1,20}call UnitAddItem)`,
-        'mi'
-      )
+        'mi',
+      ),
     );
     const output: Record<string, string> =
       this.getChoosableHeroItems(heroID) ?? {};
@@ -420,8 +436,8 @@ export class OZScriptParser extends BaseScriptParser {
 
     Array.from(
       replaceCodeBlock.matchAll(
-        /if .{2,40}\s?>=(?<level>\d{1,2})\s.+\n(?:^.+$\n){0,20}?(?:call UnitAddItemById\(.{2,6},\s?(?<value>\d+))/gim
-      )
+        /if .{2,40}\s?>=(?<level>\d{1,2})\s.+\n(?:^.+$\n){0,20}?(?:call UnitAddItemById\(.{2,6},\s?(?<value>\d+))/gim,
+      ),
     )
       // Костыль для ОЗ версии
       .filter(({ groups }, idx, arr) => {
@@ -446,45 +462,48 @@ export class OZScriptParser extends BaseScriptParser {
     const abilitiesMatch = this.script.match(
       new RegExp(
         String.raw`if GetUnitTypeId\((?<var>.{2,6})\)==${this.strToInt(
-          heroID
-        )}.+\n.+?GetHeroLevel\(\k<var>\)`
-      )
+          heroID,
+        )}.+\n.+?GetHeroLevel\(\k<var>\)`,
+      ),
     );
     if (!abilitiesMatch?.index) return;
     const setAbiCodeBlock = this.getIfBlockByIndex(abilitiesMatch.index);
 
     const output = Array.from(
-      setAbiCodeBlock.matchAll(/.+GetHeroLevel\(.{2,6}\)>?=(?<level>\d{1,2})/g)
-    ).reduce((acc, item) => {
-      const { level } = item.groups ?? {};
-      if (!level || !item.index) return acc;
+      setAbiCodeBlock.matchAll(/.+GetHeroLevel\(.{2,6}\)>?=(?<level>\d{1,2})/g),
+    ).reduce(
+      (acc, item) => {
+        const { level } = item.groups ?? {};
+        if (!level || !item.index) return acc;
 
-      const thisLevelCodeBlock = this.getIfBlockByIndex(
-        item.index,
-        setAbiCodeBlock
-      );
-      const abilities = Array.from(
-        thisLevelCodeBlock.match(/(?<=UnitAddAbility\(.{2,6},)\d+/g) ?? []
-      );
+        const thisLevelCodeBlock = this.getIfBlockByIndex(
+          item.index,
+          setAbiCodeBlock,
+        );
+        const abilities = Array.from(
+          thisLevelCodeBlock.match(/(?<=UnitAddAbility\(.{2,6},)\d+/g) ?? [],
+        );
 
-      const items = abilities
-        .map(
-          (abilityID) =>
-            this.script.match(
-              new RegExp(
-                String.raw`(?<=.{2,6}==${abilityID}.+\n(?:^.+$\n){1,12}.+UnitAddItemById\(.{2,6},)\d+`,
-                'gm'
-              )
-            )?.[0]
-        )
-        .filter(isNotNil);
+        const items = abilities
+          .map(
+            (abilityID) =>
+              this.script.match(
+                new RegExp(
+                  String.raw`(?<=.{2,6}==${abilityID}.+\n(?:^.+$\n){1,12}.+UnitAddItemById\(.{2,6},)\d+`,
+                  'gm',
+                ),
+              )?.[0],
+          )
+          .filter(isNotNil);
 
-      items.forEach((itemRawId) => {
-        acc[this.intToStr(itemRawId)] = level;
-      });
+        items.forEach((itemRawId) => {
+          acc[this.intToStr(itemRawId)] = level;
+        });
 
-      return acc;
-    }, {} as Record<string, string>);
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
     if (!Object.values(output).length) return;
     return output;
   }
@@ -498,8 +517,8 @@ export class OZScriptParser extends BaseScriptParser {
     const findBlockIndex = this.script.match(
       new RegExp(
         String.raw`(?:else)?if .{2,6}==${this.strToInt(bonusID)}`,
-        'mi'
-      )
+        'mi',
+      ),
     )?.index;
     if (!findBlockIndex) return;
     const codeBlock = this.getIfBlockByIndex(findBlockIndex);
@@ -509,8 +528,8 @@ export class OZScriptParser extends BaseScriptParser {
     const found = codeBlock.match(
       new RegExp(
         String.raw`(?<=set (?:${preparedVars})(?:\[w+\])?\s?=\s?)\d+`,
-        'mi'
-      )
+        'mi',
+      ),
     )?.[0];
     return found ? this.intToStr(found) : undefined;
   }
